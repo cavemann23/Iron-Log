@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- IRONLOG v2.3.0 build:20260321-progression-rec -->
+<!-- IRONLOG v2.5.0 build:20260321-rec-rebalance -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -420,7 +420,7 @@ header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; 
   <div class="header-row1">
     <div class="logo"><span class="logo-iron">IRON</span><span class="logo-log">LOG</span></div>
     <div class="date-str" id="dateDisplay"></div>
-    <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:1px">v2.3</div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:1px">v2.5</div>
   </div>
   <div class="header-row2">
     <div class="header-name" id="charName" onclick="startEditName()" title="Tap to edit your name">ATHLETE</div>
@@ -533,7 +533,7 @@ header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; 
     <div class="attr-row">
       <div class="attr-label hint" onclick="toggleTip(event)">
         <span class="attr-name">REC</span><span class="hint-icon">?</span>
-        <div class="tip above"><div class="tip-title">Recovery</div><div class="tip-body">Composite stat: <b>55% lift sessions</b> · <b>25% sleep quality</b> · <b>10% low-fatigue days</b> · <b>10% easy aerobic miles</b>. Grinders who skip sleep get capped. Recovery is trainable.</div></div>
+        <div class="tip above"><div class="tip-title">Recovery</div><div class="tip-body">Composite: <b>50% sessions</b> · <b>20% sleep quality</b> · <b>10% low-fatigue days</b> · <b>10% easy miles</b> · <b>10% rest day pattern</b>. 1–3 rest days/week = bonus. 0 rest days = penalty. Grinders who never recover get capped.</div></div>
       </div>
       <div class="attr-bar"><div class="attr-fill rec" id="attrRec" style="width:5%"></div></div>
       <div class="attr-val" id="attrRecVal">5</div>
@@ -1374,36 +1374,60 @@ function recalcAttrs() {
   const STR_MAX = 1_250_000;
   const END_MAX = 375;
   const SPD_MAX = 275;
-  // REC components
-  const REC_SESSION_MAX = 275;   // lift sessions
-  const REC_SLEEP_MAX   = 15000; // cumulative sleep score (sessions × score)
-  const REC_FATIGUE_MAX = 80;    // low-fatigue sessions (≤4/10)
-  const REC_Z2_MAX      = 120;   // easy aerobic miles (Z2 quality cardio)
+  const REC_SESSION_MAX = 200;  // lift sessions — ~1yr at 4x/week
+  const REC_SLEEP_MAX   = 6000; // cumulative sleep score — 75 entries × avg 80
+  const REC_FATIGUE_MAX = 50;   // low-fatigue sessions logged
+  const REC_Z2_MAX      = 80;   // easy aerobic miles
+  const REC_WEEK_MAX    = 52;   // optimal rest weeks in a year
 
   function scale(v,max){return Math.min(99,Math.max(1,Math.round(1+98*Math.sqrt(Math.min(v,max)/max))));}
 
   const hardMiles = state.runLog.reduce((s,r)=>s+((r.type.includes('Interval')||r.type.includes('Tempo'))?r.dist:0),0);
 
-  // END: run miles + lift volume bonus
   const liftEndBonus = state.liftLog.reduce((s,e)=>{
     const sets = e.sets||0;
     return sets > 4 ? s + 0.035 * Math.pow(sets-4, 1.5) : s;
   }, 0);
 
-  // REC: composite
+  // REC components
   const sleepSum = (state.physioLog||[]).reduce((s,e)=>s+(e.sleepScore||0), 0);
   const lowFatSessions = (state.physioLog||[]).filter(e=>e.fatigue && e.fatigue<=4).length;
   const z2Miles = state.runLog.reduce((s,r)=>{
-    if (r.type.includes('Easy') || r.type.includes('Incline Walk')) return s + r.dist;
-    if (r.zones && r.zones.z2) return s + (r.zones.z2/60) * r.dist; // weighted by Z2 time fraction
+    if(r.type.includes('Easy')||r.type.includes('Incline Walk')) return s+r.dist;
+    if(r.zones&&r.zones.z2) return s+(r.zones.z2/60)*r.dist;
     return s;
   }, 0);
 
+  // Rest day quality: score each calendar week based on training days
+  // 0 rest days → penalty (0.5), 1-3 rest days → reward (1.5), 4-5 → neutral (1.0), 6-7 → slight penalty (0.7)
+  const allDates = new Set([
+    ...state.liftLog.map(e=>e.date),
+    ...state.runLog.map(e=>e.date)
+  ]);
+  const weekMap = {};
+  allDates.forEach(d=>{
+    if(!d) return;
+    const dt = new Date(d+'T12:00:00');
+    // ISO week key: year-week
+    const jan4 = new Date(dt.getFullYear(),0,4);
+    const wk = Math.ceil(((dt-jan4)/86400000 + jan4.getDay()+1)/7);
+    const key = dt.getFullYear()+'-W'+String(wk).padStart(2,'0');
+    weekMap[key] = (weekMap[key]||0) + 1;
+  });
+  const restScore = Object.values(weekMap).reduce((s, trainingDays)=>{
+    const rest = 7 - Math.min(trainingDays, 7);
+    if(rest === 0)          return s + 0.5;   // no rest — penalty
+    if(rest <= 3)           return s + 1.5;   // 1-3 rest days — optimal
+    if(rest <= 5)           return s + 1.0;   // 4-5 rest days — neutral
+    return s + 0.7;                            // 6-7 rest days — undertraining
+  }, 0);
+
   const recScore = Math.round(
-    scale(state.liftSessions, REC_SESSION_MAX) * 0.55 +
-    scale(sleepSum, REC_SLEEP_MAX)             * 0.25 +
+    scale(state.liftSessions, REC_SESSION_MAX) * 0.50 +
+    scale(sleepSum, REC_SLEEP_MAX)             * 0.20 +
     scale(lowFatSessions, REC_FATIGUE_MAX)     * 0.10 +
-    scale(z2Miles, REC_Z2_MAX)                 * 0.10
+    scale(z2Miles, REC_Z2_MAX)                 * 0.10 +
+    scale(restScore, REC_WEEK_MAX)             * 0.10
   );
 
   state.attrs.str = scale(state.totalVolumeLbs, STR_MAX);
