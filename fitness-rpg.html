@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- IRONLOG v2.5.0 build:20260321-rec-rebalance -->
+<!-- IRONLOG v2.6.0 build:20260321-analysis-bw-fix -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -321,26 +321,6 @@ header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; 
 
 
 /* ── TRAINING PLAN ── */
-.plan-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 20px; }
-.plan-goals-toggle { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
-.plan-goals-toggle:hover .charts-chevron { color: var(--accent); }
-.plan-tiles { display: flex; flex-direction: column; gap: 10px; }
-.plan-tile { background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 14px; border-left: 3px solid var(--accent); }
-.plan-tile.day2 { border-left-color: var(--blue); }
-.plan-tile.day3 { border-left-color: var(--purple); }
-.plan-tile-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.plan-tile-day { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; }
-.plan-tile-day.day1 { color: var(--accent); }
-.plan-tile-day.day2 { color: var(--blue); }
-.plan-tile-day.day3 { color: var(--purple); }
-.plan-tile-type { font-size: 13px; font-weight: 800; color: var(--text3); }
-.plan-tile-body { font-size: 12px; color: var(--text); line-height: 1.75; }
-.plan-tile-body strong { color: var(--text2); }
-.plan-tile-exercises { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
-.plan-exercise-row { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: 10px; padding: 4px 8px; background: var(--surface3); border-radius: 4px; }
-.plan-exercise-name { color: var(--text2); font-weight: 600; }
-.plan-exercise-prescription { color: var(--dim2); }
-.plan-generated-date { font-family: var(--mono); font-size: 9px; color: var(--dim); text-align: right; margin-top: 8px; }
 
 /* ── HISTORY ── */
 .history-container { overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s; max-height: 0; opacity: 0; margin-bottom: 0; }
@@ -420,7 +400,7 @@ header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; 
   <div class="header-row1">
     <div class="logo"><span class="logo-iron">IRON</span><span class="logo-log">LOG</span></div>
     <div class="date-str" id="dateDisplay"></div>
-    <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:1px">v2.5</div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:1px">v2.6</div>
   </div>
   <div class="header-row2">
     <div class="header-name" id="charName" onclick="startEditName()" title="Tap to edit your name">ATHLETE</div>
@@ -902,38 +882,6 @@ header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; 
 </div>
 
 <!-- TRAINING PLAN -->
-<div class="section-label">Next 3 Workouts</div>
-<div class="plan-card" id="planCard">
-
-  <!-- Goals input (collapsible) -->
-  <div class="plan-goals-toggle" onclick="toggleGoalsInput()">
-    <div style="font-size:12px;font-weight:700;color:var(--text2)">🎯 Training Goals</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="font-family:var(--mono);font-size:9px;color:var(--dim2)" id="goalsLastUpdated"></div>
-      <span class="charts-chevron" id="goalsChevron" style="font-size:10px">▼</span>
-    </div>
-  </div>
-  <div id="goalsInputArea" style="display:none;margin-top:10px">
-    <textarea id="goalsText" class="physio-notes" rows="4"
-      placeholder="e.g. Hit a 6min mile while maintaining strength. Push/leg/pull/leg split. Cut to 180lbs by June. Prioritise deadlift PR this month."
-      style="margin-bottom:8px"></textarea>
-    <button class="btn-log" onclick="saveGoals()" style="margin-bottom:0">Save Goals</button>
-  </div>
-
-  <!-- Plan tiles -->
-  <div id="planStatus" class="analysis-status" style="display:none"></div>
-  <div id="planTiles" style="margin-top:12px"></div>
-
-  <!-- Generate button -->
-  <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
-    <button class="analysis-btn" id="planGenBtn" onclick="generatePlan()" style="flex:1;padding:12px">
-      ⚡ Generate Plan
-    </button>
-    <div style="font-family:var(--mono);font-size:9px;color:var(--dim2);max-width:120px;line-height:1.5">Uses your goals + recent log + API key above</div>
-  </div>
-
-</div>
-
 <!-- AI ANALYSIS -->
 <div class="section-label">AI Performance Analysis</div>
 <div class="analysis-card" id="analysisCard">
@@ -1288,8 +1236,6 @@ const BLANK = {
   prestige:0,
   trackedLifts: null,
   trainingGoals: '',
-  goalsUpdated: null,
-  trainingPlan: null,
   homeGym: null,
   liftSessions:0, runSessions:0, totalSessions:0,
   totalVolumeLbs:0, totalMiles:0,
@@ -2395,15 +2341,25 @@ function runExport(){
   const sortedBWLog = [...(state.bodyWeightLog||[])].sort((a,b)=>a.date.localeCompare(b.date));
 
   const liftRows = lifts.map(l=>{
-    const e1rm = l.weight&&l.reps ? (l.weight*(1+l.reps/30)).toFixed(2) : '';
     const physio = (state.physioLog||[]).find(p=>p.date===l.date)||{};
     // BW lookup: physio entry for that date → most recent BW log on or before that date → most recent overall
     const sessionBW = physio.bw
       || sortedBWLog.filter(e=>e.date<=l.date).slice(-1)[0]?.weight
       || sortedBWLog.slice(-1)[0]?.weight
       || '';
-    const isBW = l.exercise.toLowerCase().includes('pull-up') || l.exercise.toLowerCase().includes('dip');
-    const rel = e1rm && sessionBW && !isBW ? (parseFloat(e1rm)/parseFloat(sessionBW)).toFixed(2) : '';
+    const isBW = l.exercise.toLowerCase().includes('pull-up') || l.exercise.toLowerCase().includes('dip') || /^dip/i.test(l.exercise);
+    // For BW exercises: e1rm uses effective weight (BW + added weight), rel = e1rm/BW (1.00 at pure BW)
+    let e1rm, rel;
+    if(isBW && sessionBW) {
+      const addedWeights = (l.setsDetail||'').match(/BW\+([\d.]+)x/g)||[];
+      const maxAdded = addedWeights.length ? Math.max(...addedWeights.map(s=>parseFloat(s.match(/BW\+([\d.]+)/)[1]))) : 0;
+      const effBW = parseFloat(sessionBW) + maxAdded;
+      e1rm = l.reps ? (effBW*(1+l.reps/30)).toFixed(2) : '';
+      rel = e1rm ? (parseFloat(e1rm)/parseFloat(sessionBW)).toFixed(2) : '';
+    } else {
+      e1rm = l.weight&&l.reps ? (l.weight*(1+l.reps/30)).toFixed(2) : '';
+      rel = e1rm && sessionBW ? (parseFloat(e1rm)/parseFloat(sessionBW)).toFixed(2) : '';
+    }
 
     // Total reps @ top weight — use stored value if available,
     // otherwise count from setsDetail for historical entries
@@ -3047,9 +3003,22 @@ function renderAll() {
   // Feeds
   document.getElementById('liftFeed').innerHTML=state.liftLog.slice(0,10).map((e,i)=>{
     const bw = (state.bodyWeightLog||[]).slice(-1)[0]?.weight;
-    const e1rm = e.weight > 0 ? Math.round(e.weight*(1+(e.reps||1)/30)) : null;
-    const relStr = bw && e1rm ? (e1rm/bw).toFixed(2)+'×BW' : null;
     const isBWEntry = e.weight === 0 || (e.setsDetail && e.setsDetail.startsWith('BW+'));
+    // For BW exercises: e1rm uses effective weight (BW + added), rel str = e1rm/BW (1.00 at pure BW)
+    let e1rm, relStr;
+    if(isBWEntry && bw) {
+      // Extract max added weight from setsDetail (e.g. BW+25x8 → 25)
+      const addedWeights = (e.setsDetail||'').match(/BW\+([\d.]+)x/g)||[];
+      const maxAdded = addedWeights.length ? Math.max(...addedWeights.map(s=>parseFloat(s.match(/BW\+([\d.]+)/)[1]))) : 0;
+      const effBW = bw + maxAdded;
+      e1rm = Math.round(effBW*(1+(e.reps||1)/30));
+      relStr = (e1rm/bw).toFixed(2)+'×BW';
+    } else if(e.weight > 0) {
+      e1rm = Math.round(e.weight*(1+(e.reps||1)/30));
+      relStr = bw ? (e1rm/bw).toFixed(2)+'×BW' : null;
+    } else {
+      e1rm = null; relStr = null;
+    }
     const detail = e.setsDetail||(e.weight?e.weight+'lbs×'+e.sets+'×'+e.reps:'BW');
     // Collapsed preview: for BW show "BW · 15,11,9,7", for weighted show "225x4@9.5…"
     let previewStr;
@@ -3131,7 +3100,6 @@ function renderAll() {
   renderRecords();
   renderHeightDisplay();
   renderCharts();
-  renderPlan();
 }
 
 // ─── TOOLTIPS ─────────────────────────────────────────────────────────────────
@@ -3569,13 +3537,27 @@ function buildAnalysisPrompt(period) {
   });
   const liftLines = Object.entries(liftsByEx).map(([ex,entries])=>{
     const sorted = [...entries].sort((a,b)=>a.date.localeCompare(b.date));
-    const e1rm = e => e.weight>0 ? Math.round(e.weight*(1+(e.reps||1)/30)) : 0;
+    const isBWEx = /pull.?up|pullup|^dip/i.test(ex);
+    const e1rm = e => {
+      if(isBWEx && latestBW) {
+        // BW exercises: effective weight = BW + added weight
+        const addedWeights = (e.setsDetail||'').match(/BW\+([\d.]+)x/g)||[];
+        const maxAdded = addedWeights.length ? Math.max(...addedWeights.map(s=>parseFloat(s.match(/BW\+([\d.]+)/)[1]))) : 0;
+        const effBW = parseFloat(latestBW) + maxAdded;
+        return e.reps ? Math.round(effBW*(1+(e.reps||1)/30)) : Math.round(effBW);
+      }
+      return e.weight>0 ? Math.round(e.weight*(1+(e.reps||1)/30)) : 0;
+    };
     const first = e1rm(sorted[0]);
     const last  = e1rm(sorted[sorted.length-1]);
     const best  = Math.max(...sorted.map(e1rm));
     const trend = last>first+2?'↑':last<first-2?'↓':'→';
     const rpeStr = sorted[sorted.length-1].rpe ? ` @RPE${sorted[sorted.length-1].rpe}` : '';
-    return `  ${ex}: ${sorted.length}x sessions | best E1RM ${best}lbs | ${first}→${last}lbs ${trend}${rpeStr}`;
+    const relStr = latestBW && best ? ` | ${(best/parseFloat(latestBW)).toFixed(2)}×BW` : '';
+    const setsStr = isBWEx
+      ? ` | sets: ${sorted[sorted.length-1].setsDetail||sorted[sorted.length-1].reps+'reps'}`
+      : '';
+    return `  ${ex}: ${sorted.length}x sessions | best E1RM ${best}lbs${relStr} | ${first}→${last}lbs ${trend}${rpeStr}${setsStr}`;
   }).join('\n') || '  No lift data';
 
   const totalVol = lifts.reduce((s,e)=>s+(e.totalVol||0),0);
@@ -3643,52 +3625,52 @@ function buildAnalysisPrompt(period) {
   const milesPerWeek    = (totalMiles/weeksNum).toFixed(1);
   const volPerWeek      = Math.round(totalVol/weeksNum).toLocaleString();
 
-  return `You are a strength and conditioning coach. Analyse this athlete's training data and give specific, actionable recommendations.
+  return `You are an elite strength and conditioning coach analysing a hybrid athlete's training log. Be direct, specific, and data-driven. Use the actual numbers from the log — do not invent or assume data that isn't present.
 
-ATHLETE: 32yo male pilot, hybrid athlete on a body recomposition cut (lose fat, maintain strength, improve running).
+ATHLETE PROFILE:
+32yo male pilot | Hybrid athlete | Body recomposition cut (fat loss, strength maintenance, run improvement)
 Height: ${state.heightFt}'${state.heightIn||0}" | Current weight: ${latestBW||'unknown'}lbs | FFMI: ${ffmiStr}
-Fitness class: ${getFitnessClass(state.attrs).name} | Level ${state.level}
+Fitness class: ${getFitnessClass(state.attrs).name} | Level ${state.level} | Attrs — STR:${state.attrs.str} END:${state.attrs.end} SPD:${state.attrs.spd} REC:${state.attrs.rec}
+
+CONTEXT:
+- Pilot schedule: irregular hours, road rotations, hotel gym when away from base
+- Hotel gym = smith machine, dumbbells, cables only
+- Primary goal: sub-6 minute mile while maintaining compound strength
+- Cut phase: caloric deficit, expect slower strength gains
+- BW exercises (pull-ups, dips): E1RM calculated from bodyweight + added weight. Relative strength = E1RM ÷ BW (1.00 = pure bodyweight)
 
 ANALYSIS PERIOD: ${periodLabel} — ${fromStr} to ${toStr} (${spanWeeks} weeks)
 
 ─── TRAINING FREQUENCY ───
-Total active days: ${totalDays} across ${spanWeeks} weeks
-Lift days: ${liftDays} (${liftDaysPerWeek}/week avg) | Run days: ${runDays} (${runDaysPerWeek}/week avg)
-Lift/Run split: ${Math.round(liftDays/(totalDays||1)*100)}% lifting / ${Math.round(runDays/(totalDays||1)*100)}% running
+Total active days: ${totalDays} | Lift days: ${liftDays} (${liftDaysPerWeek}/wk) | Run days: ${runDays} (${runDaysPerWeek}/wk)
+Split: ${Math.round(liftDays/(totalDays||1)*100)}% lift / ${Math.round(runDays/(totalDays||1)*100)}% run
 
-─── LIFTING (${liftDays} sessions, ${lifts.length} exercises logged) ───
-Total volume: ${totalVol.toLocaleString()}lbs (${volPerWeek}lbs/week avg)
-Exercise breakdown (E1RM trend first session → last session):
+─── LIFTING (${liftDays} sessions, ${lifts.length} exercises, ${totalVol.toLocaleString()}lbs total / ${volPerWeek}lbs/wk) ───
 ${liftLines}
 
-─── RUNNING (${runDays} sessions) ───
-Total: ${totalMiles.toFixed(1)} miles (${milesPerWeek} miles/week avg)
-Avg pace: ${avgPaceStr}${avgHR ? ` | Avg HR: ${avgHR}bpm` : ''}
-Intensity split: ${intensityRatio}% hard (${hardMiles.toFixed(1)}mi tempo/intervals) / ${100-intensityRatio}% easy (${easyMiles.toFixed(1)}mi)
-Run type breakdown: ${Object.entries(runTypeCount).map(([k,v])=>`${k}: ${v}`).join(', ')||'none'}
+─── RUNNING (${runDays} sessions, ${totalMiles.toFixed(1)}mi total, ${milesPerWeek}mi/wk) ───
+Avg working pace: ${avgPaceStr}${avgHR ? ` | Avg HR: ${avgHR}bpm` : ''}
+Intensity: ${intensityRatio}% hard (${hardMiles.toFixed(1)}mi) / ${100-intensityRatio}% easy (${easyMiles.toFixed(1)}mi) — optimal is 80/20 easy/hard
+Run types: ${Object.entries(runTypeCount).map(([k,v])=>`${k}×${v}`).join(', ')||'none'}
 
 ─── RECOVERY & PHYSIOLOGY ───
-Sleep score: ${avgSleep}/100${sleepRange} (${sleepEntries.length} logged nights)
-Pre-session fatigue: ${avgFatigue}/10 (${fatigueEntries.length} logged sessions)
-Bodyweight trend: ${bwTrend}
-${recentNotes ? 'Recent session notes:\n'+recentNotes : 'No session notes logged'}
+Sleep score: ${avgSleep}/100${sleepRange} (${sleepEntries.length} logged) | Pre-session fatigue: ${avgFatigue}/10 (${fatigueEntries.length} logged)
+Bodyweight: ${bwTrend}
+${recentNotes ? 'Session notes:\n'+recentNotes : 'No session notes logged this period'}
 
-─── IMPORTANT CONTEXT ───
-- Pilot schedule: irregular hours, hotel gym sessions when on rotation
-- Cut phase: prioritising fat loss while maintaining strength
-- Goal: sub-6min mile while maintaining compound lift numbers
-- Hotel gym sessions are equipment-limited (dumbbells, smith machine, cables)
+─── DATA QUALITY NOTE ───
+If sleep/fatigue/BW data shows N/A or low logged count, acknowledge the gap but still analyse what IS present. Do not fabricate missing data. Flag what would improve analysis accuracy.
 
-Please provide analysis in these exact sections:
-1. PERFORMANCE SUMMARY — 2-3 sentences on overall trend
-2. LIFTING ANALYSIS — what's progressing, stalling, key E1RM trends
-3. RUNNING ANALYSIS — volume, intensity distribution, pace vs HR efficiency
-4. RECOVERY & READINESS — sleep/fatigue impact on performance
-5. BODY COMPOSITION — weight/FFMI trend, cut progress
-6. NEXT WEEK RECOMMENDATIONS — specific sets/reps/weights, run types and paces
-7. WATCH OUT FOR — 1-2 red flags to monitor
+Respond in exactly these 7 sections with headers matching this format:
+### 1. PERFORMANCE SUMMARY
+### 2. LIFTING ANALYSIS
+### 3. RUNNING ANALYSIS
+### 4. RECOVERY & READINESS
+### 5. BODY COMPOSITION
+### 6. NEXT WEEK RECOMMENDATIONS
+### 7. WATCH OUT FOR
 
-Be direct. Use the actual numbers. 3-5 sentences per section max.`;
+Rules: Be direct. Use actual numbers. 3-5 sentences per section. Specific weights/paces in recommendations (use recent log numbers). Call out both wins and problems honestly.`;
 }
 
 async function runAnalysis(period) {
@@ -3768,259 +3750,9 @@ function formatAnalysisText(text) {
 }
 
 // ─── TRAINING PLAN ────────────────────────────────────────────────────────────
-function toggleGoalsInput() {
-  const area = document.getElementById('goalsInputArea');
-  const chev = document.getElementById('goalsChevron');
-  if (!area) return;
-  const isOpen = area.style.display !== 'none';
-  area.style.display = isOpen ? 'none' : 'block';
-  chev.classList.toggle('open', !isOpen);
-  if (!isOpen) {
-    document.getElementById('goalsText').value = state.trainingGoals || '';
-  }
-}
+// ─── SESSION HISTORY ──────────────────────────────────────────────────────────
 
-function saveGoals() {
-  const text = document.getElementById('goalsText').value.trim();
-  if (!text) { showToast('Enter your goals first'); return; }
-  state.trainingGoals = text;
-  state.goalsUpdated = todayStr();
-  save();
-  toggleGoalsInput();
-  renderPlan();
-  showToast('Goals saved');
-}
-
-function renderPlan() {
-  const lastUpdated = document.getElementById('goalsLastUpdated');
-  if (lastUpdated) {
-    lastUpdated.textContent = state.goalsUpdated
-      ? 'Updated ' + state.goalsUpdated.slice(5)
-      : state.trainingGoals ? 'Goals set' : 'No goals yet';
-  }
-
-  const tilesEl = document.getElementById('planTiles');
-  if (!tilesEl) return;
-
-  if (!state.trainingPlan) {
-    tilesEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;padding:16px 0">
-      ${state.trainingGoals
-        ? 'Tap ⚡ Generate Plan to get your next 3 workouts'
-        : 'Set your training goals above, then generate a plan'}
-    </div>`;
-    return;
-  }
-
-  const plan = state.trainingPlan;
-  const dayColors = ['day1','day2','day3'];
-  const dayLabels = ['Tomorrow', 'Day After', 'Day 3'];
-
-  tilesEl.innerHTML = `<div class="plan-tiles">${plan.days.map((day, i) => `
-    <div class="plan-tile ${dayColors[i]}">
-      <div class="plan-tile-header">
-        <div>
-          <div class="plan-tile-day ${dayColors[i]}">${dayLabels[i]}</div>
-          <div class="plan-tile-type">${day.type}</div>
-        </div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--dim2);text-align:right">
-          ${day.duration || ''}<br>${day.intensity || ''}
-        </div>
-      </div>
-      <div class="plan-tile-body">${day.focus || ''}</div>
-      ${day.exercises && day.exercises.length ? `
-        <div class="plan-tile-exercises">
-          ${day.exercises.map(ex => `
-            <div class="plan-exercise-row">
-              <span class="plan-exercise-name">${ex.name}</span>
-              <span class="plan-exercise-prescription">${ex.sets}</span>
-            </div>`).join('')}
-        </div>` : ''}
-      ${day.notes ? `<div style="font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:8px;line-height:1.6">${day.notes}</div>` : ''}
-    </div>`).join('')}
-  </div>
-  <div class="plan-generated-date">Generated ${plan.generatedDate} · Based on goals from ${plan.goalsDate}</div>`;
-}
-
-function buildPlanPrompt() {
-  const today = todayStr();
-  // Last 7 days of activity
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
-  const cutoffStr = cutoff.toISOString().slice(0,10);
-  const recentLifts = state.liftLog.filter(e=>e.date>=cutoffStr);
-  const recentRuns  = state.runLog.filter(e=>e.date>=cutoffStr);
-
-  // What was done today and yesterday
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-  const yesterdayStr = yesterday.toISOString().slice(0,10);
-  const todayLifts = state.liftLog.filter(e=>e.date===today);
-  const todayRuns  = state.runLog.filter(e=>e.date===today);
-  const yestLifts  = state.liftLog.filter(e=>e.date===yesterdayStr);
-  const yestRuns   = state.runLog.filter(e=>e.date===yesterdayStr);
-
-  const todayStr2 = todayLifts.length||todayRuns.length
-    ? [...todayLifts.map(e=>e.exercise), ...todayRuns.map(r=>r.type+' '+r.dist+'mi')].join(', ')
-    : 'Rest day';
-  const yestStr = yestLifts.length||yestRuns.length
-    ? [...yestLifts.map(e=>e.exercise), ...yestRuns.map(r=>r.type+' '+r.dist+'mi')].join(', ')
-    : 'Rest day';
-
-  // Recent lift summary
-  const recentByEx = {};
-  recentLifts.forEach(e=>{
-    if(!recentByEx[e.exercise]) recentByEx[e.exercise]=[];
-    recentByEx[e.exercise].push(e);
-  });
-  const recentLiftSummary = Object.entries(recentByEx)
-    .map(([ex,entries])=>{
-      const best = entries.reduce((a,b)=>a.weight>b.weight?a:b);
-      return `${ex}: ${best.weight}lbs×${best.reps} (${best.date.slice(5)})`;
-    }).join('\n') || 'No lifts in last 7 days';
-
-  const recentRunSummary = recentRuns.length
-    ? recentRuns.map(r=>`${r.date.slice(5)} ${r.type} ${r.dist}mi${r.time?' @'+(r.time/r.dist).toFixed(1)+'/mi':''}`).join('\n')
-    : 'No runs in last 7 days';
-
-  // Current physio
-  const latestPhysio = (state.physioLog||[]).slice(-1)[0];
-  const physioStr = latestPhysio
-    ? `BW: ${latestPhysio.bw||'?'}lbs, Sleep: ${latestPhysio.sleepScore||'?'}/100, Fatigue: ${latestPhysio.fatigue||'?'}/10${latestPhysio.notes?', Notes: "'+latestPhysio.notes+'"':''}`
-    : 'No recent physio data';
-
-  const latestBW = (state.bodyWeightLog||[]).slice(-1)[0]?.weight || '?';
-
-  return `You are a strength and conditioning coach. Generate a specific 3-day training plan for tomorrow and the 2 days following.
-
-ATHLETE PROFILE:
-Age: 32, Height: ${state.heightFt}'${state.heightIn||0}", Weight: ${latestBW}lbs
-Level: ${state.level} (${state.totalSessions} total sessions, ${state.liftSessions} lift days, ${state.runSessions} run days)
-
-TRAINING GOALS:
-${state.trainingGoals || 'No goals set — use general hybrid athlete programming'}
-
-RECENT ACTIVITY (last 7 days):
-Lifts:
-${recentLiftSummary}
-
-Runs:
-${recentRunSummary}
-
-YESTERDAY (${yesterdayStr}): ${yestStr}
-TODAY (${today}): ${todayStr2}
-
-LATEST PHYSIO: ${physioStr}
-
-Return ONLY valid JSON in this exact format — no markdown, no explanation, just the JSON:
-{
-  "days": [
-    {
-      "type": "Push Day",
-      "duration": "60 min",
-      "intensity": "Moderate",
-      "focus": "One sentence on the goal of this session",
-      "exercises": [
-        {"name": "Bench Press", "sets": "4×6 @ 190lbs (RPE 8)"},
-        {"name": "Incline DB Press", "sets": "3×10 @ 65lbs"},
-        {"name": "Standing OHP", "sets": "3×8 @ 100lbs"},
-        {"name": "Tricep Pushdown", "sets": "3×12"}
-      ],
-      "notes": "Optional coaching note about this session"
-    },
-    {
-      "type": "Run — Easy + Intervals",
-      "duration": "35 min",
-      "intensity": "Zone 2 + Zone 4",
-      "focus": "One sentence on the goal",
-      "exercises": [
-        {"name": "Warm up", "sets": "10min easy Z2"},
-        {"name": "Intervals", "sets": "6×1min @ 7:30/mi, 90s rest"},
-        {"name": "Cool down", "sets": "10min easy"}
-      ],
-      "notes": "Optional note"
-    },
-    {
-      "type": "Leg Day",
-      "duration": "55 min",
-      "intensity": "Hard",
-      "focus": "One sentence on the goal",
-      "exercises": [
-        {"name": "Back Squat", "sets": "4×5 @ 195lbs (RPE 8.5)"},
-        {"name": "Deadlift", "sets": "3×4 @ 275lbs"},
-        {"name": "Hack Squat", "sets": "3×10 @ 160lbs"},
-        {"name": "Bulgarian Splits", "sets": "3×8 each @ 35lbs"}
-      ],
-      "notes": "Optional note"
-    }
-  ]
-}
-
-Be specific with weights — use the athlete's recent numbers to set realistic targets slightly above their last session. Account for what was done today and yesterday to avoid overtraining. Respect the athlete's stated goals and split preferences.`;
-}
-
-async function generatePlan() {
-  const apiKey = document.getElementById('analysisApiKey')?.value.trim();
-  if (!apiKey || !apiKey.startsWith('sk-ant-')) {
-    showToast('Enter your API key in the Analysis section first');
-    return;
-  }
-  if (!state.trainingGoals) {
-    showToast('Set your training goals first');
-    toggleGoalsInput();
-    return;
-  }
-
-  const btn = document.getElementById('planGenBtn');
-  const statusEl = document.getElementById('planStatus');
-  if (btn) btn.disabled = true;
-  statusEl.style.display = 'block';
-  statusEl.style.color = 'var(--dim2)';
-  statusEl.textContent = '⏳ Building your plan...';
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: buildPlanPrompt() }]
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(()=>({}));
-      throw new Error(err?.error?.message || `API error ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.content?.find(b=>b.type==='text')?.text || '';
-    if (!text) throw new Error('No response');
-
-    // Parse JSON — strip any markdown fences just in case
-    const clean = text.replace(/```json|```/g,'').trim();
-    const parsed = JSON.parse(clean);
-
-    state.trainingPlan = {
-      ...parsed,
-      generatedDate: todayStr(),
-      goalsDate: state.goalsUpdated || todayStr()
-    };
-    save();
-    statusEl.style.display = 'none';
-    renderPlan();
-    showToast('Plan generated ✓');
-
-  } catch(err) {
-    statusEl.textContent = '❌ ' + (err.message || 'Something went wrong — check your API key');
-    statusEl.style.color = 'var(--red)';
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
+// ─── SESSION HISTORY ──────────────────────────────────────────────────────────
 
 // ─── SESSION HISTORY ──────────────────────────────────────────────────────────
 let historyOpen = false;
@@ -4511,7 +4243,7 @@ if (state.liftLog) state.liftLog.forEach(e => {
 });
 if (!state.physioLog) state.physioLog = [];
 if (!state.trackedLifts) state.trackedLifts = JSON.parse(JSON.stringify(DEFAULT_TRACKED_LIFTS));
-if (state.trainingGoals === undefined) { state.trainingGoals = ''; state.trainingPlan = null; state.goalsUpdated = null; }
+if (state.trainingGoals === undefined) { state.trainingGoals = ''; }
 if (state.homeGym === undefined) state.homeGym = null;
 if (!state.customExercises) state.customExercises = [];
 
